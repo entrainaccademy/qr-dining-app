@@ -10,6 +10,8 @@ const { verifyToken } = require('./middleware/auth');
 if (!process.env.JWT_SECRET) { console.error('JWT_SECRET is not set in server/.env'); process.exit(1); }
 
 const app = express();
+// Behind Render/Vercel-style proxies: trust the first proxy so rate limits see each guest's real IP.
+app.set('trust proxy', 1);
 const server = http.createServer(app);
 
 const { origin: corsOrigin } = require('./config/origins');
