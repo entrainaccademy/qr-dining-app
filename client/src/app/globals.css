@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+:root {
+  --brand-background: #F6F2E9;
+  --brand-surface: #FFFEFB;
+  --brand-ink: #14231E;
+  --brand-muted: #5C6862;
+  --brand-line: #DCE0D3;
+  --brand-accent: #1F5F4B;
+  --brand-accent-dark: #164A3A;
+  --brand-accent-soft: #E1EDE5;
+  --brand-brass: #B08D4C;
+  --brand-veg: #2E7D32;
+  --brand-non-veg: #B3261E;
+}
+
+/* Real values are injected from src/config/brand.ts by layout.tsx. */
+@theme inline {
+  --color-cream: var(--brand-background);
+  --color-surface: var(--brand-surface);
+  --color-ink: var(--brand-ink);
+  --color-muted: var(--brand-muted);
+  --color-line: var(--brand-line);
+  --color-accent: var(--brand-accent);
+  --color-accent-dark: var(--brand-accent-dark);
+  --color-accent-soft: var(--brand-accent-soft);
+  --color-brass: var(--brand-brass);
+  --color-veg: var(--brand-veg);
+  --color-nonveg: var(--brand-non-veg);
+  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
+  --font-display: var(--font-playfair), Georgia, serif;
+}
+
+html { scroll-behavior: smooth; }
+body {
+  background: var(--brand-background);
+  color: var(--brand-ink);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+@keyframes sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+.animate-sheet { animation: sheet-up .25s ease-out; }
+.animate-fade { animation: fade-in .2s ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .animate-sheet, .animate-fade { animation: none; }
+}
+
+/* Staff board: a new order's card pulses a few times so it can't be missed. */
+@keyframes flash { 0%, 100% { box-shadow: 0 0 0 0 rgba(31, 95, 75, 0); } 50% { box-shadow: 0 0 0 7px rgba(31, 95, 75, .35); } }
+.animate-flash { animation: flash 1.2s ease-in-out 6; }
+@media (prefers-reduced-motion: reduce) { .animate-flash { animation: none; outline: 3px solid var(--brand-accent); } }
