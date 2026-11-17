@@ -133,8 +133,8 @@ export function MenuView() {
           </p>
           <p className="mt-4 flex items-center justify-center gap-2 text-sm font-medium">
             <span className={`h-2 w-2 rounded-full ${closed ? "bg-nonveg" : "bg-veg"}`} />
-            {closed ? "Kitchen paused" : "Open now"}
-            <span className="font-normal text-muted">· {brand.hours.replace("Daily ", "")}</span>
+            {closed ? { closed: "Closed today", hours: "Kitchen closed", paused: "Kitchen paused" }[menu.restaurant.closedReason ?? "paused"] : "Open now"}
+            <span className="font-normal text-muted">· {menu.restaurant.hoursText ?? brand.hours.replace("Daily ", "")}</span>
           </p>
           <div className="mt-5 flex items-center justify-center gap-3">
             <a href={phoneHref} className="inline-flex h-11 items-center gap-2 rounded-full bg-accent px-6 text-sm font-semibold text-white shadow-sm transition active:scale-[0.98]">
@@ -150,7 +150,7 @@ export function MenuView() {
       <div className="mx-auto w-full max-w-lg px-4">
         {closed && (
           <div role="status" className="mb-4 rounded-2xl border border-nonveg/30 bg-[#FBEAE8] p-4 text-sm text-nonveg">
-            <strong>The kitchen is paused right now.</strong> You can browse the menu, but ordering is unavailable. Please try again soon or call us.
+            <strong>{menu.restaurant.closedMessage ?? "The kitchen isn't taking orders right now."}</strong> You can still browse the menu, but ordering is unavailable. Please try again later or call us.
           </div>
         )}
       </div>

@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { brand } from "@/config/brand";
 import { useAuth } from "@/store/auth";
@@ -55,6 +56,18 @@ export function AdminGate({ children }: { children: React.ReactNode }) {
           </button>
         </div>
       </header>
+      <nav className="flex gap-2 border-b border-line bg-surface px-4 py-2 sm:px-6" aria-label="Admin sections">
+        {[["/admin", "Orders"], ["/admin/menu", "Menu & stock"]].map(([href, label]) => (
+          <Link
+            key={href}
+            href={href}
+            aria-current={pathname === href ? "page" : undefined}
+            className={`inline-flex h-10 items-center rounded-full px-4 text-sm font-semibold transition ${pathname === href ? "bg-accent text-white" : "text-ink hover:bg-accent-soft"}`}
+          >
+            {label}
+          </Link>
+        ))}
+      </nav>
       {children}
     </div>
   );

@@ -8,6 +8,8 @@ const Category = require('../models/Category');
 const MenuItem = require('../models/MenuItem');
 const Order = require('../models/Order');
 const { publicOrder, adminOrder } = require('../lib/serialize');
+const { kitchenState, pretty } = require('../lib/hours');
+const { reserveStock, restoreStock } = require('../lib/stock');
 
 const router = express.Router();
 const MAX_ACTIVE_ORDERS = 3;
@@ -41,9 +43,14 @@ router.get('/menu', menuLimiter, async (req, res) => {
     MenuItem.find({ restaurant: room.restaurant }).sort('sortOrder').lean(),
   ]);
 
+  const kitchen = kitchenState(restaurant);
   res.json({
     hotel: { name: hotel.name },
-    restaurant: { id: restaurant._id, name: restaurant.name, tagline: restaurant.tagline, isOpen: restaurant.isOpen && !restaurant.ordersPaused, gstPercent: restaurant.gstPercent },
+    restaurant: {
+      id: restaurant._id, name: restaurant.name, tagline: restaurant.tagline, gstPercent: restaurant.gstPercent,
+      isOpen: kitchen.open, closedReason: kitchen.reason, closedMessage: kitchen.message, // why ordering is off, in guest-friendly words
+      hoursText: restaurant.hours && restaurant.hours.enabled ? `${pretty(restaurant.hours.open)} – ${pretty(restaurant.hours.close)}` : null,
+    },
     room: { number: room.number },
     categories: categories
       .map((c) => ({
@@ -54,7 +61,8 @@ router.get('/menu', menuLimiter, async (req, res) => {
           .filter((i) => String(i.category) === String(c._id))
           .map((i) => ({
             id: i._id, name: i.name, description: i.description, price: i.price,
-            isVeg: i.isVeg, image: i.image, available: i.available,
+            // Guests only learn sold-out or not; the exact stock count stays on the admin side.
+            isVeg: i.isVeg, image: i.image, available: i.available !== false && !(typeof i.stock === 'number' && i.stock <= 0),
             addOns: i.addOns.map((a) => ({ id: a._id, name: a.name, price: a.price })),
           })),
       }))
@@ -88,7 +96,8 @@ router.post('/orders', orderLimiter, async (req, res) => {
   if (!room) return res.status(404).json({ error: 'Invalid or expired QR code' });
 
   const restaurant = await Restaurant.findById(room.restaurant);
-  if (!restaurant.isOpen || restaurant.ordersPaused) return res.status(409).json({ error: 'The kitchen is not accepting orders right now.' });
+  const kitchen = kitchenState(restaurant);
+  if (!kitchen.open) return res.status(409).json({ error: kitchen.message });
 
   const active = await Order.countDocuments({ room: room._id, status: { $in: Order.ACTIVE_STATUSES } });
   if (active >= MAX_ACTIVE_ORDERS) {
@@ -114,16 +123,27 @@ router.post('/orders', orderLimiter, async (req, res) => {
     lines.push({ menuItem: m._id, name: m.name, isVeg: m.isVeg, unitPrice: m.price, qty: it.qty, addOns, note: it.note || undefined, lineTotal: round2(unit * it.qty) });
   }
 
+  // Reserve stock. Each decrement is atomic and only succeeds if enough is left, so two guests
+  // ordering the last portion can't both get it. Items with no stock count are unlimited.
+  const reserved = await reserveStock(lines, byId);
+  if (!reserved.ok) return res.status(409).json({ error: `Sorry, ${reserved.name} just sold out. Please update your cart.` });
+
   const subtotal = round2(lines.reduce((s, l) => s + l.lineTotal, 0));
   const tax = round2((subtotal * restaurant.gstPercent) / 100);
   const last = await Order.findOne({ restaurant: restaurant._id }).sort('-orderNumber').select('orderNumber').lean();
 
-  const order = await Order.create({
-    restaurant: restaurant._id, room: room._id, roomNumber: room.number,
-    orderNumber: ((last && last.orderNumber) || 1000) + 1,
-    items: lines, subtotal, tax, total: round2(subtotal + tax),
-    guestName, guestPhone: guestPhone || undefined, paymentMethod, notes, status: 'received', statusHistory: [{ status: 'received' }],
-  });
+  let order;
+  try {
+    order = await Order.create({
+      restaurant: restaurant._id, room: room._id, roomNumber: room.number,
+      orderNumber: ((last && last.orderNumber) || 1000) + 1,
+      items: lines, subtotal, tax, total: round2(subtotal + tax),
+      guestName, guestPhone: guestPhone || undefined, paymentMethod, notes, status: 'received', statusHistory: [{ status: 'received' }],
+    });
+  } catch (e) {
+    await restoreStock(lines); // the order failed, so hand the portions back
+    throw e;
+  }
 
   req.app.get('io').to(`restaurant:${restaurant._id}`).emit('order:new', adminOrder(order));
   res.status(201).json({ order: publicOrder(order) });

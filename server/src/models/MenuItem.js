@@ -14,6 +14,8 @@ module.exports = model('MenuItem', new Schema({
   isVeg: { type: Boolean, default: true },
   image: String,
   addOns: [addOnSchema],
-  available: { type: Boolean, default: true },
+  available: { type: Boolean, default: true }, // manual sold-out switch
+  // Portions left today. null/missing = not tracked (unlimited). Admin-only; guests just see sold out or not.
+  stock: { type: Number, min: 0, default: null },
   sortOrder: { type: Number, default: 0 },
 }, { timestamps: true }));

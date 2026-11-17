@@ -129,7 +129,8 @@ export function Board() {
     return m;
   }, [orders]);
 
-  const paused = !!settings && (settings.ordersPaused || !settings.isOpen);
+  const paused = !!settings && !settings.kitchen.open; // paused, closed for the day, or outside opening hours
+  const outsideHours = settings?.kitchen.reason === "hours";
   const soundOn = alertsOn || soundReady();
 
   return (
@@ -155,14 +156,14 @@ export function Board() {
           <button
             role="switch"
             aria-checked={!paused}
-            disabled={!settings || !settings.isOpen}
+            disabled={!settings || !settings.isOpen || outsideHours}
             onClick={togglePause}
             className={`flex h-11 items-center gap-3 rounded-full px-4 text-sm font-semibold transition disabled:opacity-60 ${paused ? "bg-[#FBEAE8] text-nonveg" : "bg-accent text-white"}`}
           >
             <span className={`relative h-6 w-11 rounded-full ${paused ? "bg-nonveg/30" : "bg-white/30"}`}>
               <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${paused ? "left-0.5" : "left-[22px]"}`} />
             </span>
-            {settings && !settings.isOpen ? "Restaurant closed" : paused ? "Ordering paused" : "Accepting orders"}
+            {settings && !settings.isOpen ? "Restaurant closed" : outsideHours ? "Outside opening hours" : paused ? "Ordering paused" : "Accepting orders"}
           </button>
         </div>
       </div>
@@ -175,7 +176,9 @@ export function Board() {
       )}
       {paused && (
         <p role="status" className="mt-3 rounded-xl border border-nonveg/30 bg-[#FBEAE8] p-3 text-sm text-nonveg">
-          Guests can see the menu but can&apos;t place orders until you turn ordering back on.
+          {outsideHours
+            ? `${settings?.kitchen.message} Guests can see the menu but can't order. Change hours under Menu & stock.`
+            : "Guests can see the menu but can't place orders until you turn ordering back on."}
         </p>
       )}
 
